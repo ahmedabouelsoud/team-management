@@ -13,14 +13,82 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;background:va
 @media(max-width:780px){.wrap{padding:16px 13px 30px}.board{grid-template-columns:1fr}.sidecol{display:grid;grid-template-columns:1fr 1fr;align-items:start}.days{gap:5px}.day{min-height:62px}.day strong{font-size:11px}.day small{font-size:10px}.weekcard{padding:14px}.card{padding:15px}}
 @media(max-width:520px){.mast{margin-bottom:14px}.mast h1{font-size:20px}.mark{width:40px;height:40px}.weekhead{align-items:flex-start;flex-direction:column}.weeknav{width:100%;justify-content:space-between}.weeknav input{width:145px}.days{gap:4px}.day{padding:8px 2px;min-height:59px;border-radius:12px}.day strong{font-size:10px}.day small{font-size:9px}.day .count{font-size:9px}.day.today:after{inset-inline-start:4px;top:5px}.sidecol{display:flex}.it{gap:8px;padding:12px 6px}.it .badge{font-size:9px;padding:4px 6px}.s{font-size:11px}}
 </style>
+<style>
+:root{--bg:#f2f5f7;--card:#fff;--tx:#172435;--mu:#748397;--ac:#08796e;--ac2:#e7f5f2;--bd:#e5ebef;--bad:#b94a44;--sh:0 4px 18px rgba(29,50,70,.045)}
+body{font-family:system-ui,"Segoe UI",Tahoma,Arial,sans-serif;line-height:1.6}
+.wrap{max-width:1240px;padding:22px 20px 34px}
+.mast{margin-bottom:18px}
+.mark{background:linear-gradient(145deg,#08796e,#0b9380);box-shadow:0 5px 13px #08796e25}
+.mast h1{font-size:24px;letter-spacing:-.4px}
+.sub{font-size:12px}
+.save-state{display:flex;align-items:center;gap:6px;margin-top:3px;color:var(--mu);font-size:10px}
+.save-dot{width:7px;height:7px;border-radius:50%;background:#30a078;box-shadow:0 0 0 3px #e8f5ef}
+.save-state.error{color:var(--bad)}.save-state.error .save-dot{background:var(--bad);box-shadow:0 0 0 3px #fff0ef}
+.card{border-radius:17px;padding:19px;border-color:#e5ebef;box-shadow:0 3px 14px rgba(31,52,72,.04)}
+.weekcard{margin-bottom:15px}
+.weekhead{margin-bottom:13px}
+.weekhead h2,.sectionhead h2,.card h2{font-size:15px;color:var(--tx)}
+.weeknav{gap:6px}
+.weeknav button{font-size:11px;padding:8px 10px}
+.weeknav input{width:142px;font-size:12px}
+.days{gap:8px}
+.day{min-height:72px;padding:10px 6px;border:1px solid transparent;border-radius:13px;transition:background .15s,border-color .15s,transform .15s}
+.day:hover{transform:translateY(-1px);border-color:#c9e0d7}
+.day strong{font-size:12px}
+.day small{font-size:11px}
+.day.on{background:var(--ac2);border-color:#62ad9a;color:#086b61;box-shadow:inset 0 0 0 1px #ffffffa8}
+.day .count{display:block;font-size:9px;color:#08796e}
+.board{grid-template-columns:minmax(0,1fr) 310px;gap:15px}
+.maincol,.sidecol{gap:15px}
+.sectionhead{margin-bottom:12px}
+.sectionhead h2{margin-bottom:2px}
+.add-activity{white-space:nowrap;font-weight:700;font-size:11px}
+.day-progress-wrap{margin:-2px 0 8px}
+.daymeta{gap:8px;font-size:11px}
+.daymeta b{font-size:11px}
+.day-progress-track{width:100px;height:6px;overflow:hidden;border-radius:10px;background:var(--ac2)}
+.day-progress-track i{display:block;height:100%;border-radius:inherit;background:var(--ac);transition:width .2s}
+.it{gap:10px;padding:13px 9px;border-bottom-color:#edf1f3;border-radius:10px}
+.it:hover{background:#f8fbfa}
+.it.cur{background:#eaf6f3}
+.it input[type=checkbox]{width:20px;height:20px}
+.tt{font-size:13px}
+.s{font-size:11px}
+.it .badge{font-size:9px}
+button{border-radius:10px;font-size:12px;font-weight:650}
+button.g{background:#edf6f3;color:#08796e}
+button.g:hover{background:#e2f1ed}
+input{border-color:#dfe7e9;border-radius:9px;background:#fff;font-size:12px}
+.chip{padding:6px 10px;font-size:11px;border-radius:9px}
+.chip.on{box-shadow:0 2px 8px color-mix(in srgb,var(--c) 20%,transparent)}
+.fg{gap:10px}
+.fg label{font-size:11px}
+.fg input{margin-top:2px}
+.repeat label{border:1px solid transparent;cursor:pointer}
+.repeat label:has(input:checked){background:var(--ac2);color:var(--ac)}
+.now{font-size:12px;background:var(--ac2);color:var(--tx)}
+.summarytitle{margin-bottom:9px!important}
+.sm{font-size:11px}
+.emp{padding:28px 12px}
+.emp strong{font-size:13px}
+.emp button{margin-top:10px}
+@media(max-width:780px){.wrap{padding:15px 13px 26px}.board{grid-template-columns:1fr}.sidecol{display:grid;grid-template-columns:1fr 1fr;gap:12px}.days{gap:5px}.day{min-height:65px}.weekcard{padding:15px}.card{padding:16px}}
+@media(max-width:560px){.wrap{padding:12px 10px calc(20px + env(safe-area-inset-bottom,0px))}.mast{align-items:flex-start}.mast h1{font-size:20px}.mark{width:39px;height:39px;border-radius:12px}.mast>.g{padding:8px 12px}.weekhead{gap:11px}.weeknav{display:grid;grid-template-columns:1fr auto 1fr;gap:5px}.weeknav button{padding:8px 6px;font-size:10px}.weeknav input{width:132px;padding:8px}.days{gap:3px}.day{min-height:61px;padding:7px 1px;border-radius:10px}.day strong{font-size:9px}.day small{font-size:9px;margin-top:3px}.day .count{font-size:8px}.day.today:after{inset-inline-start:4px;top:5px}.sidecol{display:flex}.agenda-card .sectionhead{align-items:center}.add-activity{padding:8px 9px;font-size:10px}.day-progress-track{width:70px}.it{gap:7px;padding:12px 5px}.it .badge{font-size:8px;padding:3px 5px}.it .ic{padding:5px;font-size:12px}.s{font-size:10px}.fg{grid-template-columns:1fr 1fr}.card{padding:14px;border-radius:14px}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111b19;--card:#1b2824;--tx:#e8f1ed;--mu:#9baca5;--ac:#55c5a1;--ac2:#243b33;--bd:#2c3b35;--bad:#f08181;--on:#11231d;--sh:none;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#111b19;--card:#1b2824;--tx:#e8f1ed;--mu:#9baca5;--ac:#55c5a1;--ac2:#243b33;--bd:#2c3b35;--bad:#f08181;--on:#11231d;--sh:none;color-scheme:dark}
+</style>
+
+<style>
+@media(min-width:781px){.sidecol>section:last-child{position:sticky;top:12px}}
+</style>
 </head>
 <body>
 <div class="wrap">
-  <header class="mast"><div class="brand"><div class="mark" aria-hidden="true">ي</div><div><h1>يومي</h1><div class="sub" id="dt"></div></div></div><button class="g" data-a="today">ارجع لليوم</button></header>
-  <section class="card weekcard"><div class="weekhead"><h2>أسبوعك</h2><div class="weeknav"><button class="g" data-a="week" data-i="-1" aria-label="الأسبوع السابق">‹ الأسبوع السابق</button><input type="date" id="pickDate" aria-label="اختيار التاريخ"><button class="g" data-a="week" data-i="1" aria-label="الأسبوع التالي">الأسبوع التالي ›</button></div></div><div class="days" id="days"></div></section>
+  <header class="mast"><div class="brand"><div class="mark" aria-hidden="true">ي</div><div><h1>يومي</h1><div class="sub" id="dt"></div><div class="save-state"><span class="save-dot"></span><span id="saveState">حفظ تلقائي على هذا الجهاز</span></div></div></div><button class="g" data-a="today">اليوم</button></header>
+  <section class="card weekcard"><div class="weekhead"><div><h2>أسبوعك</h2><div class="sub">اختار يومًا لعرض خطته ومتابعة إنجازه.</div></div><div class="weeknav"><button class="g" data-a="week" data-i="-1" aria-label="الأسبوع السابق">‹ <span>الأسبوع السابق</span></button><input type="date" id="pickDate" aria-label="اختيار التاريخ"><button class="g" data-a="week" data-i="1" aria-label="الأسبوع التالي"><span>الأسبوع التالي</span> ›</button></div></div><div class="days" id="days"></div></section>
   <div class="board">
     <main class="maincol">
-      <section class="card"><div class="sectionhead"><div><h2 id="listTitle">خطة اليوم</h2><div class="sub">رتّب وقتك واترك مساحة للراحة</div></div><div class="daymeta" id="dayProgress"></div></div><div id="list"></div></section>
+      <section class="card agenda-card"><div class="sectionhead"><div><h2 id="listTitle">خطة اليوم</h2><div class="sub">رتّب وقتك واترك مساحة للراحة.</div></div><button class="g add-activity" data-a="focus">＋ إضافة نشاط</button></div><div class="day-progress-wrap"><div class="daymeta" id="dayProgress"></div></div><div id="list"></div></section>
     </main>
     <aside class="sidecol">
       <section class="card"><h2 class="summarytitle">مساحة يومك</h2><div id="hero"></div></section>
@@ -35,9 +103,10 @@ const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&qu
 const key=d=>{const x=d||new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const id=()=>Math.random().toString(36).slice(2,9);
 const PAL=['#6366f1','#0f766e','#d97706','#db2777','#2563eb','#65a30d','#7c3aed','#dc2626'];
+const memberKey=new URLSearchParams(location.search).get('member')||'guest',storageKey='yawmi2:'+memberKey;
 let S={cats:[{k:'s',n:'نوم',c:PAL[0]},{k:'w',n:'شغل / كلية',c:PAL[1]},{k:'o',n:'نشاطات أخرى',c:PAL[2]}],blocks:{}};
-try{const r=localStorage.getItem('yawmi2');if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
-const save=()=>{try{localStorage.setItem('yawmi2',JSON.stringify(S))}catch(e){}};
+try{let r=localStorage.getItem(storageKey);if(!r){r=localStorage.getItem('yawmi2');if(r){localStorage.setItem(storageKey,r);localStorage.removeItem('yawmi2')}}if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+const save=()=>{try{localStorage.setItem(storageKey,JSON.stringify(S));const state=$('#saveState'),wrap=state?.parentElement;if(state)state.textContent='محفوظ تلقائيًا على هذا الجهاز';wrap?.classList.remove('error');return true}catch(e){const state=$('#saveState'),wrap=state?.parentElement;if(state)state.textContent='تعذر الحفظ — مساحة التخزين ممتلئة';wrap?.classList.add('error');return false}};
 let T=key(), chosenDate=new Date();
 S.blocks[T]=S.blocks[T]||[];
 const dayNames=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
@@ -62,7 +131,7 @@ function main(){
   const bl=[...S.blocks[T]].sort((a,b)=>mins(a.time)-mins(b.time));
   const tot=bl.reduce((a,b)=>a+dm(b),0),free=Math.max(0,1440-tot);
   const done=bl.filter(b=>b.d).length,pct=bl.length?Math.round(done/bl.length*100):0,today=T===key();
-  $('#dayProgress').innerHTML=bl.length?`<b>${done}/${bl.length}</b> · ${pct}%`:'';
+  $('#dayProgress').innerHTML=bl.length?`<b>${done} من ${bl.length}</b><span>${pct}% مكتمل</span><span class="day-progress-track"><i style="width:${pct}%"></i></span>`:`<span>أضف نشاطك الأول وخطط يومك</span>`;
   let cur=null,rem=0,nxt=null,nd=1e9;
   bl.forEach(b=>{const o=(nm-mins(b.time)+1440)%1440,d=dm(b);if(today&&o<d&&!cur){cur=b;rem=d-o}const w=(mins(b.time)-nm+1440)%1440;if(today&&w>0&&w<nd){nd=w;nxt=b}});
   const C=2*Math.PI*86;
