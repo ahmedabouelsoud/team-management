@@ -140,10 +140,30 @@ export default function Home() {
     setProfiles(people);
     const peopleWithPhotos=people.filter(person=>person.avatar_path);
     if(peopleWithPhotos.length){
-      void supabase.storage.from('profile-photos').createSignedUrls(peopleWithPhotos.map(person=>person.avatar_path!),3600).then(({data,error})=>{
-        if(error||!data)return;
-        setMemberPhotoUrls(Object.fromEntries(data.flatMap((photo,index)=>photo.signedUrl?[[peopleWithPhotos[index].id,photo.signedUrl]]:[])));
-      });
+      const cacheKey=`team-photo-cache:${user.id}:${me.team_id}`;
+      let cache:Record<string,{path:string;url:string;expiresAt:number}>={};
+      try{cache=JSON.parse(sessionStorage.getItem(cacheKey)||'{}') as typeof cache;}catch{}
+      const now=Date.now();
+      const cachedUrls:Record<string,string>={};
+      const missingPhotos:Profile[]=[];
+      for(const person of peopleWithPhotos){
+        const saved=cache[person.id];
+        if(saved?.path===person.avatar_path&&saved.expiresAt>now)cachedUrls[person.id]=saved.url;
+        else missingPhotos.push(person);
+      }
+      setMemberPhotoUrls(cachedUrls);
+      if(missingPhotos.length){
+        void supabase.storage.from('profile-photos').createSignedUrls(missingPhotos.map(person=>person.avatar_path!),3600).then(({data,error})=>{
+          if(error||!data)return;
+          const freshUrls:Record<string,string>={};
+          data.forEach((photo,index)=>{
+            const person=missingPhotos[index];
+            if(photo.signedUrl){freshUrls[person.id]=photo.signedUrl;cache[person.id]={path:person.avatar_path!,url:photo.signedUrl,expiresAt:Date.now()+55*60*1000};}
+          });
+          try{sessionStorage.setItem(cacheKey,JSON.stringify(cache));}catch{}
+          setMemberPhotoUrls(previous=>({...previous,...freshUrls}));
+        });
+      }
     }else setMemberPhotoUrls({});
     if (projectsResult.error) { setError(projectsResult.error.message); setBusy(false); return; }
     let loadedProjects = (projectsResult.data||[]) as Project[];
@@ -274,7 +294,7 @@ export default function Home() {
     if(nextDate&&Date.now()<nextDate.getTime()){notify(`تقدر تعدل هذا الحقل مرة أخرى يوم ${new Intl.DateTimeFormat('ar-EG',{dateStyle:'long'}).format(nextDate)}`);return;}
     if(field==='avatar_path'&&!window.confirm('بعد حفظ الصورة لن تتمكن من تغييرها لمدة 30 يومًا. هل تريد المتابعة؟'))return;
     setBusy(true);const oldPath=profile.avatar_path;let uploadedPath='';let changes:Record<string,string>={};
-    if(field==='avatar_path'&&photoFile){const extension=photoFile.type==='image/png'?'png':photoFile.type==='image/webp'?'webp':'jpg';uploadedPath=`${profile.id}/avatar-${Date.now()}.${extension}`;const {error:uploadError}=await supabase.storage.from('profile-photos').upload(uploadedPath,photoFile,{upsert:false,contentType:photoFile.type,cacheControl:'3600'});if(uploadError){setBusy(false);notify(`تعذر رفع الصورة: ${uploadError.message}`);return;}changes.avatar_path=uploadedPath;}
+    if(field==='avatar_path'&&photoFile){let uploadFile=photoFile;try{const bitmap=await createImageBitmap(photoFile);const scale=Math.min(1,384/Math.max(bitmap.width,bitmap.height));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));const context=canvas.getContext('2d');context?.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();const compressed=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/webp',0.78));if(compressed)uploadFile=new File([compressed],`${photoFile.name.replace(/\.[^.]+$/,'')}.webp`,{type:'image/webp'});}catch{}const extension=uploadFile.type==='image/webp'?'webp':uploadFile.type==='image/png'?'png':'jpg';uploadedPath=`${profile.id}/avatar-${Date.now()}.${extension}`;const {error:uploadError}=await supabase.storage.from('profile-photos').upload(uploadedPath,uploadFile,{upsert:false,contentType:uploadFile.type,cacheControl:'3600'});if(uploadError){setBusy(false);notify(`تعذر رفع الصورة: ${uploadError.message}`);return;}changes.avatar_path=uploadedPath;}
     else if(field!=='avatar_path')changes[field]=String(value);
     const {data,error}=await supabase.from('profiles').update(changes).eq('id',profile.id).select('id,display_name,role,team_id,is_active,academic_number,phone,avatar_path,profile_updated_at,display_name_updated_at,academic_number_updated_at,phone_updated_at,avatar_updated_at,password_changed_at').single();
     if(error){if(uploadedPath)await supabase.storage.from('profile-photos').remove([uploadedPath]);setBusy(false);notify(error.code==='23505'?'الرقم الأكاديمي مستخدم لحساب آخر.':error.message);return;}
