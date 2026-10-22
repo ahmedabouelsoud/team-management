@@ -45,7 +45,9 @@ export default function Home() {
   const [currentProject,setCurrentProject] = useState<Project|null>(null);
   const [phases,setPhases] = useState<Phase[]>([]);
   const [tasks,setTasks] = useState<Task[]>([]);
-  const [active,setActive] = useState('overview');
+  const [active,setActiveState] = useState('overview');
+  const activeOwnerId = useRef('');
+  function setActive(view:string){setActiveState(view);if(activeOwnerId.current)localStorage.setItem(`team-active:${activeOwnerId.current}`,view);}
   const [mobileMenu,setMobileMenu] = useState(false);
   const [modal,setModal] = useState(false);
   const [taskToEdit,setTaskToEdit] = useState<Task|null>(null);
@@ -108,6 +110,7 @@ export default function Home() {
     const profileResult = await supabase.from('profiles').select('id,display_name,role,team_id,is_active,academic_number,phone,avatar_path,github_username,profile_updated_at,display_name_updated_at,academic_number_updated_at,phone_updated_at,avatar_updated_at,password_changed_at').eq('id',user.id).single();
     if (profileResult.error || !profileResult.data) { setError('لم يتم العثور على ملف حسابك. تأكد من دعوة الحساب إلى الفريق وإعادة تسجيل الدخول.'); setBusy(false); return; }
     let me = profileResult.data as Profile;
+    activeOwnerId.current=user.id;
     const githubIdentity=user.identities?.find(identity=>identity.provider==='github');
     const githubUsername=String(githubIdentity?.identity_data?.user_name||githubIdentity?.identity_data?.preferred_username||'').replace(/^@/,'');
     if(githubUsername&&me.github_username!==githubUsername){const synced=await supabase.from('profiles').update({github_username:githubUsername}).eq('id',user.id).select('id,display_name,role,team_id,is_active,academic_number,phone,avatar_path,github_username,profile_updated_at,display_name_updated_at,academic_number_updated_at,phone_updated_at,avatar_updated_at,password_changed_at').single();if(!synced.error&&synced.data)me=synced.data as Profile;}
@@ -120,6 +123,14 @@ export default function Home() {
     if(!telegramResult.error){setTelegramConnected(Boolean(telegramResult.data?.connected));setTelegramUsername(telegramResult.data?.username||'');}
     setProfilePhotoUrl(photoResult.data?.signedUrl||'');
     if (!me.academic_number?.trim() || !me.avatar_path || (!telegramResult.error&&!telegramResult.data?.connected)) setActive('profile');
+    else {
+      const savedView=localStorage.getItem(`team-active:${user.id}`)||'overview';
+      const restoredView=savedView==='member-profile'?'team':savedView;
+      const allowedViews=['overview','tasks','team','project','projects','planner','profile'];
+      const roleAllowsView=me.role==='leader'||!['team','project','projects'].includes(restoredView);
+      if(allowedViews.includes(restoredView)&&roleAllowsView)setActive(restoredView);
+      if(restoredView==='planner')setPlannerReturn(localStorage.getItem(`team-planner-return:${user.id}`)||'overview');
+    }
     const [peopleResult,projectsResult] = await Promise.all([
       supabase.from('profiles').select('id,display_name,role,team_id,is_active,academic_number,phone,avatar_path,github_username,profile_updated_at,display_name_updated_at,academic_number_updated_at,phone_updated_at,avatar_updated_at').eq('team_id',me.team_id).order('created_at'),
       supabase.from('projects').select('id,name,team_id,summary,repository_url').eq('team_id',me.team_id).order('created_at'),
@@ -127,11 +138,13 @@ export default function Home() {
     if (peopleResult.error) { setError(`تعذر تحميل أعضاء الفريق: ${peopleResult.error.message}`); setBusy(false); return; }
     const people=(peopleResult.data as Profile[] || [me]);
     setProfiles(people);
-    const memberPhotos=await Promise.all(people.filter(person=>person.avatar_path).map(async person=>{
-      const {data}=await supabase.storage.from('profile-photos').createSignedUrl(person.avatar_path!,3600);
-      return [person.id,data?.signedUrl||''] as const;
-    }));
-    setMemberPhotoUrls(Object.fromEntries(memberPhotos));
+    const peopleWithPhotos=people.filter(person=>person.avatar_path);
+    if(peopleWithPhotos.length){
+      void supabase.storage.from('profile-photos').createSignedUrls(peopleWithPhotos.map(person=>person.avatar_path!),3600).then(({data,error})=>{
+        if(error||!data)return;
+        setMemberPhotoUrls(Object.fromEntries(data.flatMap((photo,index)=>photo.signedUrl?[[peopleWithPhotos[index].id,photo.signedUrl]]:[])));
+      });
+    }else setMemberPhotoUrls({});
     if (projectsResult.error) { setError(projectsResult.error.message); setBusy(false); return; }
     let loadedProjects = (projectsResult.data||[]) as Project[];
     if (!loadedProjects.length && me.role === 'leader') {
@@ -285,7 +298,7 @@ export default function Home() {
     setTelegramLink(data?.url||'');setBusy(false);
   }
   async function signUpFromInvite(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!supabase)return;setBusy(true);setError('');const form=new FormData(e.currentTarget);const email=String(form.get('email')).trim();const password=String(form.get('password'));const displayName=String(form.get('display_name')).trim();const academicNumber=String(form.get('academic_number')).trim();const {data,error}=await supabase.auth.signUp({email,password,options:{emailRedirectTo:getAppOrigin(),data:{invite_token:inviteToken,display_name:displayName,academic_number:academicNumber}}});if(error){setError(error.message==='Database error saving new user'?'قاعدة البيانات رفضت إنشاء الحساب. تأكد أن البريد مطابق تمامًا للبريد الذي دُعي، وأن الرابط لم يُستخدم أو تنتهِ صلاحيته. لو استمر الخطأ، راجع سجلات Auth في Supabase لمعرفة سبب الرفض.':error.message);setBusy(false);return;}if(data.session){setSession(data.session);void loadWorkspace(data.session.user);}else setInviteComplete('تم إنشاء الحساب. افتح رسالة التأكيد التي وصلت إلى بريدك، ثم سجّل الدخول.');setBusy(false);}
-  function openPlanner(){setPlannerReturn(active);setActive('planner');setMobileMenu(false);}
+  function openPlanner(){setPlannerReturn(active);if(activeOwnerId.current)localStorage.setItem(`team-planner-return:${activeOwnerId.current}`,active);setActive('planner');setMobileMenu(false);}
   async function saveTask(e:FormEvent<HTMLFormElement>){
     e.preventDefault();if(!supabase||!session||!profile)return;setBusy(true);setError('');
     const f=new FormData(e.currentTarget);
