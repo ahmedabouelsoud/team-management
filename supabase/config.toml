@@ -4,3 +4,6 @@ verify_jwt = true
 [functions.telegram-notifications]
 # The function validates user JWTs itself and also accepts Telegram's signed webhook requests.
 verify_jwt = false
+
+[functions.change-password]
+verify_jwt = true
