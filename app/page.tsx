@@ -11,7 +11,7 @@ type ProfileField = 'display_name'|'academic_number'|'phone'|'avatar_path';
 type Project = { id:string; team_id:string; name:string; summary:string; repository_url:string };
 type Phase = { id: string; name: string; position: number };
 type TaskEvent = { id: number; event: 'created'|'status_changed'|'reassigned'; from_status: Status|null; to_status: Status|null; actor_name: string; note: string; created_at: string };
-type Task = { id: string; title: string; description: string; acceptance_criteria: string; phase_id: string | null; assignee_id: string; due_date: string | null; priority: 'high'|'medium'|'low'; status: Status; learning_url: string; repository_url: string; branch_name: string; pull_request_url: string; review_feedback: string; assigneeName: string };
+type Task = { id: string; title: string; description: string; acceptance_criteria: string; phase_id: string | null; assignee_id: string; due_date: string | null; priority: 'high'|'medium'|'low'; status: Status; learning_url: string; repository_url: string; requires_submission_link: boolean; branch_name: string; pull_request_url: string; review_feedback: string; assigneeName: string };
 
 const statusNames: Record<Status,string> = {todo:'لم تبدأ',doing:'قيد التنفيذ',review:'بانتظار المراجعة',changes:'تحتاج تعديلًا',done:'مكتملة',blocked:'متوقفة'};
 const statusTone: Record<Status,string> = {todo:'neutral',doing:'blue',review:'amber',changes:'red',done:'green',blocked:'red'};
@@ -31,7 +31,7 @@ const getAppOrigin = () => {
 const isGithubPullRequest = (value:string) => { try { const url=new URL(value); return url.protocol==='https:' && url.hostname==='github.com' && /^\/[^/]+\/[^/]+\/pull\/\d+/.test(url.pathname); } catch { return false; } };
 
 const safeUrl = (value?:string|null) => { const v=(value||'').trim(); return /^https?:\/\/\S+$/i.test(v) ? v : undefined; };
-const isDevelopmentTask = (task:Task) => Boolean(safeUrl(task.repository_url));
+const requiresSubmissionLink = (task:Task) => task.requires_submission_link === true;
 const historyDate = new Intl.DateTimeFormat('ar-EG',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
 const eventText = (e:TaskEvent) => e.event==='created' ? 'أُنشئت المهمة' : e.event==='reassigned' ? 'أُعيد إسناد المهمة' : `${statusNames[(e.from_status||'todo') as Status]} ← ${statusNames[(e.to_status||'todo') as Status]}`;
 
@@ -272,7 +272,7 @@ export default function Home() {
     if(!currentProject){setError('اختر مشروعًا أولًا');setBusy(false);return;}
     const assignees=[...new Set(f.getAll('assignees').map(String).filter(Boolean))];
     if(!assignees.length){setError('اختار عضوًا واحدًا على الأقل');setBusy(false);return;}
-    const shared={phase_id:String(f.get('phase'))||null,title:String(f.get('title')).trim(),description:String(f.get('description')),acceptance_criteria:String(f.get('criteria')),due_date:String(f.get('due'))||null,priority:String(f.get('priority')) as Task['priority'],learning_url:String(f.get('video')),repository_url:String(f.get('repo'))};
+    const shared={phase_id:String(f.get('phase'))||null,title:String(f.get('title')).trim(),description:String(f.get('description')),acceptance_criteria:String(f.get('criteria')),due_date:String(f.get('due'))||null,priority:String(f.get('priority')) as Task['priority'],learning_url:String(f.get('video')),repository_url:String(f.get('repo')),requires_submission_link:f.get('requires_submission_link')==='on'};
     const result=taskToEdit
       ?await supabase.from('tasks').update({...shared,assignee_id:assignees[0]}).eq('id',taskToEdit.id).select().single()
       :await supabase.from('tasks').insert(assignees.map(assignee_id=>({...shared,assignee_id,team_id:profile.team_id,project_id:currentProject.id,created_by:session.user.id}))).select();
@@ -294,8 +294,8 @@ export default function Home() {
     if(!supabase||!detail)return;
     const branch=detail.branch_name||'';const pr=detail.pull_request_url||'';
     const next:Status=task.status==='todo'?'doing':'review';
-    if(next==='review'&&isDevelopmentTask(task)&&!branch.trim()){notify('اكتب اسم الفرع اللي اشتغلت عليه الأول');return;}
-    if(next==='review'&&isDevelopmentTask(task)&&!isGithubPullRequest(pr)){notify('أضف رابط Pull Request صحيح من GitHub، مثل github.com/org/repo/pull/12');return;}
+    if(next==='review'&&requiresSubmissionLink(task)&&!branch.trim()){notify('اكتب اسم الفرع اللي اشتغلت عليه الأول');return;}
+    if(next==='review'&&requiresSubmissionLink(task)&&!isGithubPullRequest(pr)){notify('أضف رابط Pull Request صحيح من GitHub، مثل github.com/org/repo/pull/12');return;}
     const {error}=await supabase.rpc('submit_task',{p_task_id:task.id,p_status:next,p_branch_name:branch,p_pull_request_url:pr});
     if(error){notify(error.message);return;}
     if(currentProject)await loadProjectData(currentProject);setDetail(null);notify(next==='review'?'اترسل التسليم للمراجعة':'بدأت المهمة');
@@ -361,8 +361,7 @@ function ProfileDetailsForm({profile,email,busy,onSave}:{profile:Profile;email:s
 function TaskAssigneePicker({profiles,profileId,selectedId}:{profiles:Profile[];profileId:string;selectedId:string}){
   const options=profiles.filter(p=>p.is_active||p.id===selectedId);
   const [selected,setSelected]=useState<string[]>([selectedId]);
-  const toggle=(id:string)=>setSelected(current=>current.includes(id)?current.filter(value=>value!==id):[...current,id]);
-  return <div className="task-assignee-picker"><b>اختيار المسؤولين</b><div className="assignee-shortcuts"><button type="button" onClick={()=>setSelected([profileId])}>أنا فقط</button><button type="button" onClick={()=>setSelected(options.map(p=>p.id))}>كل أعضاء الفريق</button><span>{selected.length} محدد</span></div><div className="assignee-options">{options.map(p=><label className={selected.includes(p.id)?'selected':''} key={p.id}><input type="checkbox" checked={selected.includes(p.id)} onChange={()=>toggle(p.id)}/><span>{p.id===profileId?`${p.display_name} (أنا)`:p.display_name}</span></label>)}</div>{selected.map(id=><input key={id} type="hidden" name="assignees" value={id}/>)}</div>;
+  return <label className="task-assignee-picker">المسؤولون<select name="assignees" multiple value={selected} onChange={event=>setSelected(Array.from(event.currentTarget.selectedOptions,option=>option.value))}>{options.map(p=><option key={p.id} value={p.id}>{p.id===profileId?`${p.display_name} (أنا)`:p.display_name}</option>)}</select><small>يمكن اختيار عضو واحد أو أكثر.</small></label>;
 }
 
 type IconName='overview'|'tasks'|'team'|'phases'|'projects'|'day'|'profile'|'add'|'github'|'logout'|'menu'|'google'|'telegram'|'check'|'clock'|'close'|'video';
