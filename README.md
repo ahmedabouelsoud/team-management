@@ -26,9 +26,20 @@
 6. نفّذ `supabase/migrations/20261022112816_leader_delete_tasks.sql` لإتاحة حذف المهام للقائد فقط.
 7. نفّذ `supabase/migrations/20261022115311_harden_task_workflow.sql` لفرض سير عمل المهمة من قاعدة البيانات: التحقق من الروابط (رابط Pull Request لازم يكون من github.com عبر https)، ومنع العضو من تغيير حالة المهمة خارج المسار المسموح، والتحقق من المُسنَد إليه، وتسجيل سجل لكل مهمة في `task_events`.
 8. في Authentication فعّل التسجيل بالبريد وكلمة المرور. إذا أردت استخدام الدعوة من دون إعداد SMTP مدفوع، عطّل تأكيد البريد. يسمح التطبيق بإنشاء الحساب فقط برابط دعوة صالح وبالبريد المطابق؛ قاعدة البيانات ترفض الحسابات التي لا تحمل دعوة.
-9. أضف متغيري `NEXT_PUBLIC_SUPABASE_URL` و`NEXT_PUBLIC_SUPABASE_ANON_KEY` إلى إعدادات البناء في Cloudflare Pages.
+9. أضف متغيرات `NEXT_PUBLIC_SUPABASE_URL` و`NEXT_PUBLIC_SUPABASE_ANON_KEY` و`NEXT_PUBLIC_APP_URL` إلى إعدادات البناء في Cloudflare Pages. اجعل `NEXT_PUBLIC_APP_URL` رابط الموقع المنشور كاملًا، مثل `https://app.example.com`.
+10. في Supabase افتح **Authentication > URL Configuration**، واجعل **Site URL** هو نفس رابط الإنتاج وأضفه ضمن **Redirect URLs**. لا تستخدم `localhost` هناك إلا للتطوير المحلي.
 
 لو استخدمت الحذف النهائي للأعضاء، انشر الدالة `delete-inactive-member` من مجلد `supabase/functions` بأداة Supabase CLI.
+
+## إشعارات المهام عبر Telegram
+
+1. نفّذ `supabase/migrations/20261022150000_telegram_task_notifications.sql` من SQL Editor.
+2. أضف `TELEGRAM_BOT_TOKEN` كـ Secret في **Supabase > Edge Functions > Secrets**. لا تضعه في متغيرات Cloudflare أو ملفات الواجهة.
+3. انشر الدالة `telegram-notifications` من `supabase/functions/telegram-notifications`، واترك استقبال JWT غير مطلوب على مستوى البوابة؛ الدالة تتحقق بنفسها من جلسات أعضاء التطبيق، وتتحقق من طلبات Telegram بسر ويبهوك مشتق من رمز البوت.
+4. سجّل الدخول كقائد، افتح «إشعارات تليجرام»، واضغط «تفعيل استقبال الربط» مرة واحدة.
+5. كل عضو يفتح الصفحة نفسها، ينشئ رابط الربط، ثم يضغط Start في البوت. الرابط صالح 10 دقائق.
+
+بعدها يرسل التطبيق إشعارًا عند إنشاء مهمة أو إعادة إسنادها. إذا لم يربط العضو حسابه، تُحفظ المهمة بشكل طبيعي ويظهر للقائد تنبيه بذلك.
 
 القائد ينشئ المشروع ومراحله الأساسية تلقائيًا عند أول دخول. من تبويب الفريق يصدر رابط دعوة لمدة 14 يومًا، ويرسله للعضو على البريد المدخل. الروابط سرية وتُستخدم مرة واحدة. يمكن للقائد إيقاف عضوية عضو؛ يتوقف دخوله وتبقى مهامه وسجل عمله محفوظين. لا تستخدم `service_role` في ملفات الواجهة.
 
