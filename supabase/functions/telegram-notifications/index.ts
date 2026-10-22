@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-telegram-bot-api-secret-token',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info, x-telegram-bot-api-secret-token',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -78,6 +78,16 @@ Deno.serve(async (request) => {
         return json({ ok: true });
       }
 
+      const { data: existingConnection, error: connectionError } = await admin.from('telegram_connections')
+        .select('chat_id,linked_at').eq('user_id', link.user_id).maybeSingle();
+      if (connectionError) throw connectionError;
+      const nextTelegramEdit = existingConnection ? Date.parse(existingConnection.linked_at) + 30 * 24 * 60 * 60 * 1000 : 0;
+      if (existingConnection && existingConnection.chat_id !== String(chatId) && Date.now() < nextTelegramEdit) {
+        const nextDate = new Date(nextTelegramEdit).toLocaleDateString('ar-EG', { dateStyle: 'long', timeZone: 'Africa/Cairo' });
+        await telegram('sendMessage', { chat_id: chatId, text: `لا يمكن تغيير حساب تليجرام إلا مرة كل 30 يومًا. يمكنك تغييره مجددًا بعد ${nextDate}.` });
+        return json({ ok: true });
+      }
+
       const { error: saveError } = await admin.from('telegram_connections').upsert({
         user_id: link.user_id,
         chat_id: String(chatId),
@@ -105,7 +115,16 @@ Deno.serve(async (request) => {
     }
 
     if (body.action === 'create-link') {
-      const { data: bot } = await telegram('getMe');
+      const bot = await telegram('getMe') as { username?: string };
+      if (!bot?.username) throw new Error('لم يرجع تيليجرام اسم المستخدم الخاص بالبوت. تحقق من رمز البوت في أسرار Supabase.');
+      const { data: connection, error: connectionError } = await admin.from('telegram_connections')
+        .select('linked_at').eq('user_id', user.id).maybeSingle();
+      if (connectionError) throw connectionError;
+      if (connection && Date.now() < Date.parse(connection.linked_at) + 30 * 24 * 60 * 60 * 1000) {
+        const nextDate = new Date(Date.parse(connection.linked_at) + 30 * 24 * 60 * 60 * 1000)
+          .toLocaleDateString('ar-EG', { dateStyle: 'long', timeZone: 'Africa/Cairo' });
+        throw new Error(`تغيير حساب تليجرام متاح مرة كل 30 يومًا. يمكنك تغييره مجددًا بعد ${nextDate}.`);
+      }
       const token = [...crypto.getRandomValues(new Uint8Array(16))]
         .map((byte) => byte.toString(16).padStart(2, '0')).join('');
       const { error: deleteError } = await admin.from('telegram_link_tokens').delete().eq('user_id', user.id);
