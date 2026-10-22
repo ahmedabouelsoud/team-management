@@ -81,6 +81,17 @@ export default function Home() {
   },[mobileMenu]);
 
   useEffect(()=>{
+    if(!notificationsOpen)return;
+    const closeOnOutside=(event:PointerEvent)=>{
+      if(event.target instanceof Element&&!event.target.closest('.notification-wrap'))setNotificationsOpen(false);
+    };
+    const closeOnEscape=(event:KeyboardEvent)=>{if(event.key==='Escape')setNotificationsOpen(false);};
+    document.addEventListener('pointerdown',closeOnOutside);
+    window.addEventListener('keydown',closeOnEscape);
+    return ()=>{document.removeEventListener('pointerdown',closeOnOutside);window.removeEventListener('keydown',closeOnEscape);};
+  },[notificationsOpen]);
+
+  useEffect(()=>{
     const id=detail?.id;
     if(!supabase||!id){setEvents([]);return;}
     let cancelled=false;
