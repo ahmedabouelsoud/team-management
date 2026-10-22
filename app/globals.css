@@ -23,3 +23,4 @@ button,a,input,select,textarea{transition:background-color .15s ease,border-colo
 :focus-visible{outline:3px solid #9bbda6!important;outline-offset:2px}
 @media(max-width:570px){.welcome h1{font-size:21px}.card-heading h2{font-size:15px}.task-copy b,.team-card b{font-size:13px}.task-copy small,.badge{font-size:11px}.demo-pill{font-size:0}.card{padding:16px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+.task-history{border-top:1px solid var(--line);margin:14px 0 0;padding-top:12px}.task-history>b{font-size:12px}.task-history ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}.task-history li{background:#f7f9f7;border-radius:8px;padding:8px 10px;font-size:12px}.task-history li span{font-weight:600}.task-history li p{margin:4px 0 0;color:#58675e;line-height:1.7}.task-history li small{display:block;margin-top:4px;color:var(--muted);font-size:11px}
