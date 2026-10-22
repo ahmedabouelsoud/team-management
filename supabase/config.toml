@@ -1,0 +1,2 @@
+[functions.delete-inactive-member]
+verify_jwt = true
