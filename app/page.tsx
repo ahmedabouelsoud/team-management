@@ -273,7 +273,7 @@ export default function Home() {
     if(!supabase)return;setGoogleMessage('');const {error}=await supabase.auth.linkIdentity({provider:'google',options:{redirectTo:window.location.href,queryParams:{prompt:'select_account'}}});if(error)setGoogleMessage(error.message.toLowerCase().includes('provider')?'فعّل Google من إعدادات تسجيل الدخول في Supabase ثم أعد المحاولة.':error.message);
   }
   async function linkGithubAccount(){
-    if(!supabase)return;setGithubMessage('');const {error}=await supabase.auth.linkIdentity({provider:'github',options:{redirectTo:window.location.href,scopes:'read:user'}});if(error)setGithubMessage(error.message.toLowerCase().includes('provider')?'فعّل GitHub Provider في إعدادات تسجيل الدخول في Supabase ثم أعد المحاولة.':error.message);
+    if(!supabase)return;setGithubMessage('');const {error}=await supabase.auth.linkIdentity({provider:'github',options:{redirectTo:window.location.href,scopes:'read:user'}});if(error){const message=error.message.toLowerCase();setGithubMessage(message.includes('manual linking')?'Supabase يمنع ربط الحسابات حاليًا. من لوحة Supabase افتح Authentication → Settings، فعّل Enable Manual Linking، ثم احفظ وحاول مجددًا.':message.includes('provider')?'فعّل GitHub Provider من Authentication → Sign In / Providers في Supabase ثم أعد المحاولة.':message.includes('already')?'حساب GitHub مرتبط بحساب آخر بالفعل. استخدم حساب GitHub مختلفًا أو افصل الربط السابق.':error.message);}
   }
   async function createTelegramLink(){
     if(!supabase)return;setBusy(true);
